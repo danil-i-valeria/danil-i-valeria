@@ -1528,15 +1528,15 @@ const COLOR_DATA = {
       .catch(err => console.error('Не удалось отправить в Телеграм:', err));
     }
 
-    // 3. ОТПРАВЛЯЕМ НА ПОЧТУ (Web3Forms)
+    // 3. ОТПРАВЛЯЕМ НА ПОЧТУ (Web3Forms) - ИСПРАВЛЕНА КОДИРОВКА
     if (CONFIG.web3formsKey) {
       const formData = new FormData();
       formData.append("access_key", CONFIG.web3formsKey);
-      formData.append("Тема", "Новый ответ на свадьбу!");
-      formData.append("Имя гостя", name);
-      formData.append("Статус", status);
-      formData.append("Напитки", drinks.length ? drinks.join(', ') : 'Не указаны');
-      formData.append("Пожелания", wishes || 'Нет');
+      formData.append("Subject", "Новый ответ на свадьбу!"); 
+      formData.append("Guest Name", name);
+      formData.append("Status", status);
+      formData.append("Drinks", drinks.length ? drinks.join(', ') : 'Не указаны');
+      formData.append("Wishes", wishes || 'Нет');
 
       fetch("https://api.web3forms.com/submit", { 
         method: "POST", 
