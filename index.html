@@ -1419,7 +1419,7 @@ const COLOR_DATA = {
   colorModal.addEventListener('click', e => { if (e.target === colorModal) closeColorModal(); });
 })();
 
-/* Модалка RSVP + Отправка в Telegram и на Почту */
+/* Модалка RSVP + Отправка в Telegram и на Почту (JSON формат) */
 (function () {
   const modal     = document.getElementById('modal');
   const form      = document.getElementById('rsvp-form');
@@ -1528,19 +1528,24 @@ const COLOR_DATA = {
       .catch(err => console.error('Не удалось отправить в Телеграм:', err));
     }
 
-    // 3. ОТПРАВЛЯЕМ НА ПОЧТУ (Web3Forms) - ИСПРАВЛЕНА КОДИРОВКА
+    // 3. ОТПРАВЛЯЕМ НА ПОЧТУ (Web3Forms) через JSON (русский язык работает идеально)
     if (CONFIG.web3formsKey) {
-      const formData = new FormData();
-      formData.append("access_key", CONFIG.web3formsKey);
-      formData.append("Subject", "Новый ответ на свадьбу!"); 
-      formData.append("Guest Name", name);
-      formData.append("Status", status);
-      formData.append("Drinks", drinks.length ? drinks.join(', ') : 'Не указаны');
-      formData.append("Wishes", wishes || 'Нет');
+      const payload = {
+        access_key: CONFIG.web3formsKey,
+        subject: "Новый ответ на свадьбу!",
+        "Имя гостя": name,
+        "Статус": status,
+        "Напитки": drinks.length ? drinks.join(', ') : 'Не указаны',
+        "Пожелания": wishes || 'Нет'
+      };
 
       fetch("https://api.web3forms.com/submit", { 
         method: "POST", 
-        body: formData 
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(payload)
       })
       .then(response => response.json())
       .then(data => { 
