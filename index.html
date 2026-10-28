@@ -1390,12 +1390,10 @@ const COLOR_DATA = {
     const data = COLOR_DATA[colorKey];
     if (!data) return;
 
-    // Заполняем данные
     colorTitle.textContent = data.title;
     colorDesc.textContent = data.desc;
     colorPreview.style.backgroundColor = data.color;
     
-    // Очищаем и заполняем список
     colorJewelryList.innerHTML = '';
     data.jewelry.forEach(item => {
       const li = document.createElement('li');
@@ -1403,7 +1401,6 @@ const COLOR_DATA = {
       colorJewelryList.appendChild(li);
     });
 
-    // Открываем
     colorModal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
   }
@@ -1423,7 +1420,7 @@ const COLOR_DATA = {
   colorModal.addEventListener('click', e => { if (e.target === colorModal) closeColorModal(); });
 })();
 
-/* Модалка RSVP + Отправка в Telegram */
+/* Модалка RSVP + Отправка в Telegram (ИСПРАВЛЕННАЯ ВЕРСИЯ) */
 (function () {
   const modal     = document.getElementById('modal');
   const form      = document.getElementById('rsvp-form');
@@ -1485,7 +1482,7 @@ const COLOR_DATA = {
     }
   });
 
-  form.addEventListener('submit', function (e) {
+  form.addEventListener('submit', async function (e) {
     e.preventDefault();
 
     const name = nameInput.value.trim();
@@ -1502,8 +1499,8 @@ const COLOR_DATA = {
     const wishes = document.getElementById('wishes').value.trim();
 
     const text =
-      '🔔 <b>Новый ответ на свадьбу!</b>\n\n' +
-      '👤 Гость: <b>' + name + '</b>\n' +
+      '🔔 Новый ответ на свадьбу!\n\n' +
+      '👤 Гость: ' + name + '\n' +
       '✅ Статус: ' + status + '\n' +
       (drinks.length ? '🥂 Напитки: ' + drinks.join(', ') + '\n' : '') +
       (wishes ? '📝 Пожелания: ' + wishes : '');
@@ -1511,24 +1508,34 @@ const COLOR_DATA = {
     if (CONFIG.telegramToken && CONFIG.telegramChatId) {
       const url = `https://api.telegram.org/bot${CONFIG.telegramToken}/sendMessage`;
       
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: CONFIG.telegramChatId,
-          text: text,
-          parse_mode: 'HTML'
-        })
-      }).catch(err => console.error('Ошибка отправки в Telegram:', err));
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: CONFIG.telegramChatId,
+            text: text
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.description || 'Ошибка Telegram');
+        }
+
+        thanksTxt.textContent = status === 'Не смогу'
+          ? 'Нам будет вас не хватать — но спасибо, что ответили. Обнимаем!'
+          : 'Мы получили ваш ответ и очень ждём встречи 🤍';
+
+        form.classList.add('hidden');
+        thanks.classList.remove('hidden');
+        modal.querySelector('.modal__box').scrollTop = 0;
+
+      } catch (err) {
+        console.error('Ошибка отправки:', err);
+        alert('Ой! Не удалось отправить ответ.\nПожалуйста, попробуйте еще раз.\n\nДетали: ' + err.message);
+      }
     }
-
-    thanksTxt.textContent = status === 'Не смогу'
-      ? 'Нам будет вас не хватать — но спасибо, что ответили. Обнимаем!'
-      : 'Мы получили ваш ответ и очень ждём встречи 🤍';
-
-    form.classList.add('hidden');
-    thanks.classList.remove('hidden');
-    modal.querySelector('.modal__box').scrollTop = 0;
   });
 })();
 </script>
