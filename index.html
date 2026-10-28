@@ -1254,6 +1254,7 @@ button{font:inherit;color:inherit}
 const CONFIG = {
   telegramToken: '9027984708:AAFo-eDLqsf7Z_FGku6xr0ufEGm62T6yckQ', 
   telegramChatId: '882178168',
+  web3formsKey: '948e791d-efd4-4298-9186-762e99c132be', 
   weddingDate: '2026-12-12T09:00:00+03:00'
 };
 
@@ -1418,7 +1419,7 @@ const COLOR_DATA = {
   colorModal.addEventListener('click', e => { if (e.target === colorModal) closeColorModal(); });
 })();
 
-/* Модалка RSVP + Отправка в Telegram (НЕБЛОКИРУЮЩАЯ ВЕРСИЯ) */
+/* Модалка RSVP + Отправка в Telegram и на Почту */
 (function () {
   const modal     = document.getElementById('modal');
   const form      = document.getElementById('rsvp-form');
@@ -1496,14 +1497,14 @@ const COLOR_DATA = {
                         .map(i => i.value);
     const wishes = document.getElementById('wishes').value.trim();
 
-    const text =
+    const messageText =
       '🔔 Новый ответ на свадьбу!\n\n' +
       '👤 Гость: ' + name + '\n' +
       '✅ Статус: ' + status + '\n' +
       (drinks.length ? '🥂 Напитки: ' + drinks.join(', ') + '\n' : '') +
       (wishes ? '📝 Пожелания: ' + wishes : '');
 
-    // 1. СРАЗУ ПОКАЗЫВАЕМ "СПАСИБО" (чтобы кнопка не висела)
+    // 1. СРАЗУ ПОКАЗЫВАЕМ "СПАСИБО"
     thanksTxt.textContent = status === 'Не смогу'
       ? 'Нам будет вас не хватать — но спасибо, что ответили. Обнимаем!'
       : 'Мы получили ваш ответ и очень ждём встречи 🤍';
@@ -1512,32 +1513,40 @@ const COLOR_DATA = {
     thanks.classList.remove('hidden');
     modal.querySelector('.modal__box').scrollTop = 0;
 
-    // 2. В ФОНЕ ПЫТАЕМСЯ ОТПРАВИТЬ В ТЕЛЕГРАМ
+    // 2. ОТПРАВЛЯЕМ В ТЕЛЕГРАМ
     if (CONFIG.telegramToken && CONFIG.telegramChatId) {
-      const url = `https://api.telegram.org/bot${CONFIG.telegramToken}/sendMessage`;
+      const tgUrl = `https://api.telegram.org/bot${CONFIG.telegramToken}/sendMessage`;
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-      fetch(url, {
+      fetch(tgUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: CONFIG.telegramChatId,
-          text: text
-        }),
-        signal: controller.signal
+          text: messageText
+        })
       })
-      .then(response => {
-        clearTimeout(timeoutId);
-        if (!response.ok) {
-          console.error('Ошибка Телеграма. Возможно, вы заблокировали бота.');
-        }
+      .catch(err => console.error('Не удалось отправить в Телеграм:', err));
+    }
+
+    // 3. ОТПРАВЛЯЕМ НА ПОЧТУ (Web3Forms)
+    if (CONFIG.web3formsKey) {
+      const formData = new FormData();
+      formData.append("access_key", CONFIG.web3formsKey);
+      formData.append("Тема", "Новый ответ на свадьбу!");
+      formData.append("Имя гостя", name);
+      formData.append("Статус", status);
+      formData.append("Напитки", drinks.length ? drinks.join(', ') : 'Не указаны');
+      formData.append("Пожелания", wishes || 'Нет');
+
+      fetch("https://api.web3forms.com/submit", { 
+        method: "POST", 
+        body: formData 
       })
-      .catch(err => {
-        clearTimeout(timeoutId);
-        console.error('Не удалось отправить в Телеграм (скорее всего, блокировка провайдера):', err);
-      });
+      .then(response => response.json())
+      .then(data => { 
+        if (!data.success) console.error("Ошибка отправки на почту:", data); 
+      })
+      .catch(err => console.error("Ошибка сети (почта):", err));
     }
   });
 })();
