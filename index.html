@@ -1232,7 +1232,6 @@ button{font:inherit;color:inherit}
     <button class="modal__close" id="color-close" aria-label="Закрыть">×</button>
     
     <div class="color-preview" id="color-preview">
-      <!-- Сюда будет вставляться SVG-узор и цвет -->
       <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round">
         <circle cx="50" cy="50" r="40" />
         <path d="M50 10 L50 90 M10 50 L90 50 M22 22 L78 78 M22 78 L78 22" opacity="0.5"/>
@@ -1247,7 +1246,6 @@ button{font:inherit;color:inherit}
       <span>💍</span> Идеи украшений и аксессуаров
     </div>
     <ul class="color-jewelry-list" id="color-jewelry">
-      <!-- Сюда вставляется список -->
     </ul>
   </div>
 </div>
@@ -1420,7 +1418,7 @@ const COLOR_DATA = {
   colorModal.addEventListener('click', e => { if (e.target === colorModal) closeColorModal(); });
 })();
 
-/* Модалка RSVP + Отправка в Telegram (ИСПРАВЛЕННАЯ ВЕРСИЯ) */
+/* Модалка RSVP + Отправка в Telegram (НЕБЛОКИРУЮЩАЯ ВЕРСИЯ) */
 (function () {
   const modal     = document.getElementById('modal');
   const form      = document.getElementById('rsvp-form');
@@ -1482,7 +1480,7 @@ const COLOR_DATA = {
     }
   });
 
-  form.addEventListener('submit', async function (e) {
+  form.addEventListener('submit', function (e) {
     e.preventDefault();
 
     const name = nameInput.value.trim();
@@ -1505,36 +1503,41 @@ const COLOR_DATA = {
       (drinks.length ? '🥂 Напитки: ' + drinks.join(', ') + '\n' : '') +
       (wishes ? '📝 Пожелания: ' + wishes : '');
 
+    // 1. СРАЗУ ПОКАЗЫВАЕМ "СПАСИБО" (чтобы кнопка не висела)
+    thanksTxt.textContent = status === 'Не смогу'
+      ? 'Нам будет вас не хватать — но спасибо, что ответили. Обнимаем!'
+      : 'Мы получили ваш ответ и очень ждём встречи 🤍';
+
+    form.classList.add('hidden');
+    thanks.classList.remove('hidden');
+    modal.querySelector('.modal__box').scrollTop = 0;
+
+    // 2. В ФОНЕ ПЫТАЕМСЯ ОТПРАВИТЬ В ТЕЛЕГРАМ
     if (CONFIG.telegramToken && CONFIG.telegramChatId) {
       const url = `https://api.telegram.org/bot${CONFIG.telegramToken}/sendMessage`;
       
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: CONFIG.telegramChatId,
-            text: text
-          })
-        });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: CONFIG.telegramChatId,
+          text: text
+        }),
+        signal: controller.signal
+      })
+      .then(response => {
+        clearTimeout(timeoutId);
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.description || 'Ошибка Telegram');
+          console.error('Ошибка Телеграма. Возможно, вы заблокировали бота.');
         }
-
-        thanksTxt.textContent = status === 'Не смогу'
-          ? 'Нам будет вас не хватать — но спасибо, что ответили. Обнимаем!'
-          : 'Мы получили ваш ответ и очень ждём встречи 🤍';
-
-        form.classList.add('hidden');
-        thanks.classList.remove('hidden');
-        modal.querySelector('.modal__box').scrollTop = 0;
-
-      } catch (err) {
-        console.error('Ошибка отправки:', err);
-        alert('Ой! Не удалось отправить ответ.\nПожалуйста, попробуйте еще раз.\n\nДетали: ' + err.message);
-      }
+      })
+      .catch(err => {
+        clearTimeout(timeoutId);
+        console.error('Не удалось отправить в Телеграм (скорее всего, блокировка провайдера):', err);
+      });
     }
   });
 })();
